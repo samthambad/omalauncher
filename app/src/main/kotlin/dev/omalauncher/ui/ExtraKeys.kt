@@ -69,6 +69,9 @@ private data class Sticky(
     val modifier: (KeyboardBridge) -> StickyModifier,
 ) : ExtraKey
 
+/** A key that ends the focused window rather than sending a key, drawn as [label]. */
+private data class Closing(val label: String) : ExtraKey
+
 private val Layout: List<List<ExtraKey>> =
     listOf(
         listOf(
@@ -91,6 +94,7 @@ private val Layout: List<List<ExtraKey>> =
             Plain("right", Keys.KEY_RIGHT, repeats = true, arrow = 90f),
             Plain("pgdn", Keys.KEY_PAGEDOWN, repeats = true),
             Plain("paste", Keys.KEY_INSERT, held = Keys.KEY_LEFTSHIFT),
+            Closing("X"),
         ),
     )
 
@@ -113,12 +117,14 @@ fun extraKeysWanted(): Boolean {
  * The keys a phone keyboard lacks, docked above it for terminals: a framed
  * panel of keycaps, like the tiles above it. Keys never take focus, so the
  * soft keyboard stays up; ctrl and alt latch for the next key on a tap and
- * lock on a long press.
+ * lock on a long press. Its close key ends the focused window and runs
+ * [onClose], so the host can let go of the keyboard too.
  */
 @Composable
 fun ExtraKeys(
     bridge: KeyboardBridge,
     modifier: Modifier = Modifier,
+    onClose: (() -> Unit)? = null,
 ) {
     Column(
         modifier
@@ -134,6 +140,7 @@ fun ExtraKeys(
                     when (key) {
                         is Plain -> PlainKey(key, bridge, cap)
                         is Sticky -> StickyKey(key, key.modifier(bridge), cap)
+                        is Closing -> CloseKey(key, bridge, onClose, cap)
                     }
                 }
             }
@@ -177,6 +184,32 @@ private fun PlainKey(
         } else {
             BasicText(key.label, style = Mono.copy(color = color))
         }
+    }
+}
+
+@Composable
+private fun CloseKey(
+    key: Closing,
+    bridge: KeyboardBridge,
+    onClose: (() -> Unit)?,
+    modifier: Modifier,
+) {
+    val view = LocalView.current
+    var pressed by remember { mutableStateOf(false) }
+    KeyCap(
+        modifier.pointerInput(key) {
+            presses {
+                pressed = true
+                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                bridge.closeFocused()
+                onClose?.invoke()
+                waitForUpOrCancellation()
+                pressed = false
+            }
+        },
+        fill = if (pressed) Palette.accent else Palette.surface,
+    ) {
+        BasicText(key.label, style = Mono.copy(color = if (pressed) Palette.background else Palette.foreground))
     }
 }
 

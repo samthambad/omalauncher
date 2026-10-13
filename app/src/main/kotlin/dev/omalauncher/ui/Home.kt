@@ -356,6 +356,7 @@ fun HomeScreen(
                 .align(Alignment.BottomCenter)
                 .imePadding()
                 .onGloballyPositioned { terminals.extraKeys = it.boundsInWindow() },
+            onClose = { terminals.deactivate() },
         )
     }
 

@@ -100,6 +100,16 @@ class KeyboardBridge(
         held?.let { key(it, false) }
     }
 
+    /**
+     * Closes the focused window, the way Super+W does, so a terminal or editor
+     * in it can be ended from the keys above the keyboard.
+     */
+    fun closeFocused() {
+        val toplevel = wm.focused ?: return
+        clearLatches()
+        wm.close(toplevel)
+    }
+
     /** Drops every latch, so a modifier left on doesn't surprise the next keystroke. */
     fun clearLatches() = sticky.forEach { it.latch = Latch.Off }
 
